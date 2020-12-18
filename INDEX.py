@@ -46,25 +46,25 @@ print(os.getenv("INFURA_NODE"))
 # w3.eth.enable_unaudited_features()
 print(w3.isConnected())
 print(w3.eth.blockNumber)
-def publish_evix_on_chain():
-    nonce = w3.eth.getTransactionCount(wallet_address, 'pending')
-    with open('contract_abi.json') as f:
-        abi = json.load(f)
+# def publish_evix_on_chain():
+#     nonce = w3.eth.getTransactionCount(wallet_address, 'pending')
+#     with open('contract_abi.json') as f:
+#         abi = json.load(f)
 
-    evix_contract = w3.eth.contract(
-        address=contract_address,
-        abi=abi
-    )
-    # print(wallet_address)
-    # print(os.getenv("INFURA_NODE"))
-    # acct = w3.eth.account.privateKeyToAccount(wallet_private_key)
-    # evix_contract.functions.requestEVIX("https://volmex-labs.firebaseio.com/current_evix/evix.json").estimateGas({'from': acct.address})
-    transaction = evix_contract.functions.requestEVIX("https://volmex-labs.firebaseio.com/current_evix/evix.json").buildTransaction({
-         'chainId': chainid,
-         'gas': 1600000,
-         'gasPrice': w3.toWei('50', 'gwei'),
-         'nonce': nonce,
-     })
+#     evix_contract = w3.eth.contract(
+#         address=contract_address,
+#         abi=abi
+#     )
+#     # print(wallet_address)
+#     # print(os.getenv("INFURA_NODE"))
+#     # acct = w3.eth.account.privateKeyToAccount(wallet_private_key)
+#     # evix_contract.functions.requestEVIX("https://volmex-labs.firebaseio.com/current_evix/evix.json").estimateGas({'from': acct.address})
+#     transaction = evix_contract.functions.requestEVIX("https://volmex-labs.firebaseio.com/current_evix/evix.json").buildTransaction({
+#          'chainId': chainid,
+#          'gas': 1600000,
+#          'gasPrice': w3.toWei('50', 'gwei'),
+#          'nonce': nonce,
+#      })
     # transaction.update({ 'gas' : 8000000 })
     # transaction.update({ 'gasPrice': w3.toWei('50', 'gwei') })
     # transaction.update({ 'nonce' : nonce })
@@ -272,11 +272,29 @@ def call_api():
         print('Request #1 error')
     res = r.json()
     _res = res["result"]
-    sort = sorted(_res, key=lambda x: x["expiration_timestamp"]) # sorted by expiration date
+    _sorted = sorted(_res, key=lambda x: x["expiration_timestamp"]) # sorted by expiration date
     
-    related_obj = min(sort, key=lambda x:abs(x["expiration_timestamp"]-can_expire_in)) # nearest object on 30 day option contract from now
-    # print(related_obj["expiration_timestamp"]) # timestamp found
-    required_objects = list(filter(lambda x: x["expiration_timestamp"] == related_obj["expiration_timestamp"], sort)) # all objects from array with required expiration date
+
+    related_obj = min(_sorted, key=lambda x:abs(x["expiration_timestamp"]-can_expire_in)) # nearest object on 30 day option contract from now
+    print("RESULT 1 WITH FIRST NEAR POINT") # timestamp found
+    print(related_obj) # timestamp found
+
+    required_objects = list(filter(lambda x: x["expiration_timestamp"] == related_obj["expiration_timestamp"], _sorted)) # all objects from array with required expiration date
+
+
+    # Adding 2nd Date for another 4 data points of Calls and Puts
+    _res_2 = [_k for _k in _sorted if _k["expiration_timestamp"] != related_obj["expiration_timestamp"]]
+    # print("RGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG") # timestamp found
+    # print(_res_2) # timestamp found
+
+    related_obj_2 = min(_res_2, key=lambda x:abs(x["expiration_timestamp"]-can_expire_in)) # nearest object on 30 day option contract from now
+    print("RESULT 2 WITH ANOTHER NEAR POINT") # timestamp found
+    print(related_obj_2) # timestamp found
+
+    required_objects_2 = list(filter(lambda x: x["expiration_timestamp"] == related_obj_2["expiration_timestamp"], _res_2)) # all objects from array with required expiration date
+
+    #....
+
     # print(json.dumps(required_objects, indent=4, sort_keys=True))
 
     # get current price
@@ -285,9 +303,15 @@ def call_api():
     
     highest_call = max(filter(lambda el: el["strike"] < _res_price[currency], required_objects), key = lambda el: el["strike"])
     lowest_put = min(filter(lambda el: el["strike"] > _res_price[currency], required_objects), key = lambda el: el["strike"])
-    print(json.dumps(highest_call, indent=4, sort_keys=True))
+
+    # Adding 2nd Date for another 4 data points of Calls and Puts
+    highest_call_2 = max(filter(lambda el: el["strike"] < _res_price[currency], required_objects_2), key = lambda el: el["strike"])
+    lowest_put_2 = min(filter(lambda el: el["strike"] > _res_price[currency], required_objects_2), key = lambda el: el["strike"])
+    #....
+    
+    # print(json.dumps(highest_call, indent=4, sort_keys=True))
     # print(json.dumps(lowest_put, indent=4, sort_keys=True))
-    expires_in = round((highest_call["expiration_timestamp"] - current_time)/(1000*60*60*24), 2)
+    expires_in = round((((highest_call["expiration_timestamp"] + highest_call_2["expiration_timestamp"]) / 2) - current_time)/(1000*60*60*24), 2)
     # expires_in_p = round((lowest_put["expiration_timestamp"] - current_time)/(1000*60*60*24), 2) Expiry date will be same
     
     get_last_value_call = None
@@ -295,6 +319,11 @@ def call_api():
     try:
         get_last_value_call = session.get('https://www.deribit.com/api/v2/public/get_book_summary_by_instrument', params = {"instrument_name": highest_call["instrument_name"][:-1]+'C'})
         get_last_value_call_2 = session.get('https://www.deribit.com/api/v2/public/get_book_summary_by_instrument', params = {"instrument_name": lowest_put["instrument_name"][:-1]+'C'})
+       
+        # Adding 2nd Date for another 4 data points of Calls and Puts
+        get_last_value_call_2_1 = session.get('https://www.deribit.com/api/v2/public/get_book_summary_by_instrument', params = {"instrument_name": highest_call_2["instrument_name"][:-1]+'C'})
+        get_last_value_call_2_2 = session.get('https://www.deribit.com/api/v2/public/get_book_summary_by_instrument', params = {"instrument_name": lowest_put_2["instrument_name"][:-1]+'C'})
+        #....
     except:
         print('Request #3 error')
     
@@ -303,39 +332,54 @@ def call_api():
     try:
         get_last_value_put = session.get('https://www.deribit.com/api/v2/public/get_book_summary_by_instrument', params = {"instrument_name": lowest_put["instrument_name"][:-1]+'P'})
         get_last_value_put_2 = session.get('https://www.deribit.com/api/v2/public/get_book_summary_by_instrument', params = {"instrument_name": highest_call["instrument_name"][:-1]+'P'})
+    
+        # Adding 2nd Date for another 4 data points of Calls and Puts
+        get_last_value_put_2_1 = session.get('https://www.deribit.com/api/v2/public/get_book_summary_by_instrument', params = {"instrument_name": lowest_put_2["instrument_name"][:-1]+'P'})
+        get_last_value_put_2_2 = session.get('https://www.deribit.com/api/v2/public/get_book_summary_by_instrument', params = {"instrument_name": highest_call_2["instrument_name"][:-1]+'P'})
+        #....
     except:
         print('Request #4 error')
     _r_c = get_last_value_call.json()["result"]
     _r_c_2 = get_last_value_call_2.json()["result"]
     _r_p = get_last_value_put.json()["result"]
     _r_p_2 = get_last_value_put_2.json()["result"]
-    print("All calls and puts on deribit, Firs call, 2nd call, First put, 2nd put")
-    print(_r_c)
-    print(_r_c_2)
-    print(_r_p)
-    print(_r_p_2)
+    
+    # Adding 2nd Date for another 4 data points of Calls and Puts
+    _r_c_2_1 = get_last_value_call_2_1.json()["result"]
+    _r_c_2_2 = get_last_value_call_2_2.json()["result"]
+    _r_p_2_1 = get_last_value_put_2_1.json()["result"]
+    _r_p_2_2 = get_last_value_put_2_2.json()["result"]
+    #....
+
+    # print("All calls and puts on deribit, First call, 2nd call, First put, 2nd put")
+    # print(_r_c)
+    # print(_r_c_2)
+    # print(_r_p)
+    # print(_r_p_2)
     # print(_r_c[0])
     # print(_r_p[0])
     if _r_c[0]["mark_price"] != None and _r_c_2[0]["mark_price"] != None:
-        global _r_c_in_usd
-        _r_c_in_usd = round((((_r_c[0]["mark_price"] * _res_price[currency]) + (_r_c_2[0]["mark_price"] * _res_price[currency])) / 2), 2)
-        print("Calls Average of two data points C0")
-        print(_r_c_in_usd)
-        print(_r_c[0]["mark_price"] )
-        print(_r_c_2[0]["mark_price"])
+        if _r_c_2_1[0]["mark_price"] != None and _r_c_2_2[0]["mark_price"] != None:
+            global _r_c_in_usd
+            _r_c_in_usd = round((((_r_c[0]["mark_price"] * _res_price[currency]) + (_r_c_2[0]["mark_price"] * _res_price[currency]) + (_r_c_2_1[0]["mark_price"] * _res_price[currency]) + (_r_c_2_2[0]["mark_price"] * _res_price[currency])) / 4), 2)
+            print("Calls Average of two data points C0")
+            print(_r_c_in_usd)
+            print(_r_c[0]["mark_price"] )
+            print(_r_c_2[0]["mark_price"])
 
     if _r_p[0]["mark_price"] != None and _r_p_2[0]["mark_price"] != None:
-        global _r_p_in_usd
-        _r_p_in_usd = round((((_r_p[0]["mark_price"] * _res_price[currency]) + (_r_p_2[0]["mark_price"] * _res_price[currency])) / 2), 2)
-        print("Puts Average of two data points P0")
-        print(_r_p_in_usd)
-        print(_r_p[0]["mark_price"] )
-        print(_r_p_2[0]["mark_price"])
+        if _r_p_2_1[0]["mark_price"] != None and _r_p_2_2[0]["mark_price"] != None:
+            global _r_p_in_usd
+            _r_p_in_usd = round((((_r_p[0]["mark_price"] * _res_price[currency]) + (_r_p_2[0]["mark_price"] * _res_price[currency]) + (_r_p_2_1[0]["mark_price"] * _res_price[currency]) + (_r_p_2_2[0]["mark_price"] * _res_price[currency])) / 4), 2)
+            print("Puts Average of two data points P0")
+            print(_r_p_in_usd)
+            print(_r_p[0]["mark_price"] )
+            print(_r_p_2[0]["mark_price"])
     # print(json.dumps(round(_r_c[0]["last"] * _res_price[currency], 2), indent=4, sort_keys=True))
     # print(json.dumps(round(_r_p[0]["last"] * _res_price[currency], 2), indent=4, sort_keys=True))
     runScript(_res_price[currency], highest_call["strike"], expires_in, _r_c_in_usd, lowest_put["strike"], _r_p_in_usd)
     # print(res["result"])
-    # print(json.dumps(sort, indent=4, sort_keys=True))
+    # print(json.dumps(_sorted, indent=4, sort_keys=True))
 
 
 
@@ -440,7 +484,7 @@ schedule.every(30).minutes.do(init_point_evix_24)
 schedule.every(3.5).hours.do(init_point_evix_1w)
 schedule.every(15).hours.do(init_point_evix_1m)
 schedule.every(3).seconds.do(init_point_index)
-schedule.every(20).seconds.do(current_evix_Price)
+schedule.every(3).seconds.do(current_evix_Price)
 
 while True:
     schedule.run_pending()
