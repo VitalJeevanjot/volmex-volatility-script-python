@@ -358,6 +358,15 @@ def call_api():
     # print(_r_p_2)
     # print(_r_c[0])
     # print(_r_p[0])
+    # print("\nFor 2nd data point All calls and puts on deribit, First call, 2nd call, First put, 2nd put")
+    # print(_r_c_2_1)
+    # print(_r_c_2_2)
+    # print(_r_p_2_1)
+    # print(_r_p_2_2)
+    # print(_r_c[0])
+    # print(_r_p[0])
+
+
     if _r_c[0]["mark_price"] != None and _r_c_2[0]["mark_price"] != None:
         if _r_c_2_1[0]["mark_price"] != None and _r_c_2_2[0]["mark_price"] != None:
             global _r_c_in_usd
@@ -377,7 +386,7 @@ def call_api():
             print(_r_p_2[0]["mark_price"])
     # print(json.dumps(round(_r_c[0]["last"] * _res_price[currency], 2), indent=4, sort_keys=True))
     # print(json.dumps(round(_r_p[0]["last"] * _res_price[currency], 2), indent=4, sort_keys=True))
-    runScript(_res_price[currency], highest_call["strike"], expires_in, _r_c_in_usd, lowest_put["strike"], _r_p_in_usd)
+    runScript(_res_price[currency], ((highest_call["strike"] + highest_call_2["strike"]) / 2) , expires_in, _r_c_in_usd, ((lowest_put["strike"] + lowest_put_2["strike"]) / 2), _r_p_in_usd)
     # print(res["result"])
     # print(json.dumps(_sorted, indent=4, sort_keys=True))
 
